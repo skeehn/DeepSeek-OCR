@@ -1,361 +1,423 @@
 """
-Smart Document Intelligence Platform - Streamlit UI
-Main application entry point
+Smart Document Intelligence - Modern Chat Interface
+Single-page app with chat at center, file upload integrated
 """
 import streamlit as st
-import sys
 from pathlib import Path
+import sys
+import tempfile
+import os
+from datetime import datetime
 
 # Add backend to path
 backend_path = Path(__file__).parent.parent / "backend"
 sys.path.insert(0, str(backend_path))
 
-# Page configuration
+# Page config
 st.set_page_config(
     page_title="Smart Document Intelligence",
     page_icon="📄",
     layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items={
-        'About': "Smart Document Intelligence Platform - Powered by DeepSeek-OCR, Ollama, and Gemini"
-    }
+    initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Custom CSS - Modern, clean design
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 3rem;
-        font-weight: bold;
-        text-align: center;
-        padding: 1rem 0;
+    /* Hide default Streamlit elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+
+    /* Modern chat container */
+    .main-chat {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+
+    /* Chat messages */
+    .chat-message {
+        padding: 1rem;
+        margin: 1rem 0;
+        border-radius: 0.75rem;
+        animation: fadeIn 0.3s;
+    }
+
+    .user-message {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        color: white;
+        margin-left: 20%;
     }
-    .sub-header {
-        text-align: center;
-        color: #666;
-        font-size: 1.2rem;
-        margin-bottom: 2rem;
+
+    .assistant-message {
+        background: #f7f7f8;
+        margin-right: 20%;
     }
-    .stat-card {
-        background-color: #f0f2f6;
-        padding: 1.5rem;
-        border-radius: 0.5rem;
-        border-left: 4px solid #667eea;
-    }
-    .stat-value {
-        font-size: 2rem;
-        font-weight: bold;
-        color: #667eea;
-    }
-    .stat-label {
+
+    /* Document chips */
+    .doc-chip {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        margin: 0.25rem;
+        background: #e8f4f8;
+        border-radius: 1rem;
         font-size: 0.9rem;
-        color: #666;
-        margin-top: 0.5rem;
+        border: 1px solid #3498db;
     }
-    .feature-card {
-        background-color: #fff;
-        padding: 1.5rem;
-        border-radius: 0.5rem;
+
+    /* Quick actions */
+    .quick-action {
+        background: white;
         border: 1px solid #e0e0e0;
-        margin-bottom: 1rem;
-        transition: transform 0.2s;
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        margin: 0.5rem 0;
+        cursor: pointer;
+        transition: all 0.2s;
     }
-    .feature-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+
+    .quick-action:hover {
+        border-color: #667eea;
+        transform: translateX(4px);
     }
-    .feature-icon {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
+
+    /* Sidebar styling */
+    .sidebar-section {
+        padding: 1rem 0;
+        border-bottom: 1px solid #e0e0e0;
     }
-    .stButton>button {
-        width: 100%;
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 </style>
 """, unsafe_allow_html=True)
 
 
-def show_home_page():
-    """Display home page"""
-    # Header
-    st.markdown('<h1 class="main-header">📄 Smart Document Intelligence Platform</h1>', unsafe_allow_html=True)
-    st.markdown(
-        '<p class="sub-header">Transform documents into actionable insights with AI-powered OCR, RAG, and advanced analytics</p>',
-        unsafe_allow_html=True
-    )
-
-    # Features overview
-    st.markdown("## 🌟 Features")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-icon">📝</div>
-            <h3>Document Processing</h3>
-            <p>Upload PDFs and images, extract text with layout preservation using DeepSeek-OCR</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-icon">🔍</div>
-            <h3>Semantic Search</h3>
-            <p>Find relevant information using vector embeddings and similarity search</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-icon">💬</div>
-            <h3>Intelligent Q&A</h3>
-            <p>Ask questions and get AI-powered answers with source citations</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-icon">📊</div>
-            <h3>Document Analysis</h3>
-            <p>Extract entities, compare documents, and generate summaries</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col3:
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-icon">📤</div>
-            <h3>Export & Citations</h3>
-            <p>Export results to JSON, Markdown, HTML, and generate academic citations</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-icon">🤖</div>
-            <h3>Dual LLM System</h3>
-            <p>Local Ollama for privacy, Cloud Gemini for complex reasoning</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    # Quick start guide
-    col1, col2 = st.columns([2, 1])
-
-    with col1:
-        st.markdown("## 🚀 Quick Start Guide")
-
-        st.markdown("""
-        ### 1️⃣ Upload Documents
-        Navigate to **📤 Upload** to add PDF or image documents to the system.
-
-        ### 2️⃣ Process & Index
-        Documents are automatically processed with OCR and indexed in the vector database.
-
-        ### 3️⃣ Ask Questions
-        Go to **💬 Chat** to ask questions about your documents and get AI-powered answers.
-
-        ### 4️⃣ Analyze & Export
-        Use **📊 Analyze** to extract entities, compare documents, generate summaries, and export results.
-
-        ### 5️⃣ Browse Documents
-        View all your documents in **📚 Documents** and manage your library.
-        """)
-
-    with col2:
-        st.markdown("## 📈 System Status")
-
-        try:
-            from backend.utils.storage import DocumentStorage
-            storage = DocumentStorage()
-            docs = storage.list_documents()
-
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-value">{len(docs)}</div>
-                <div class="stat-label">Total Documents</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            processed = len([d for d in docs if d.get('status') == 'processed'])
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-value">{processed}</div>
-                <div class="stat-label">Processed Documents</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        except Exception as e:
-            st.warning(f"Could not load document statistics: {e}")
-
-        st.markdown("### 🔧 System Components")
-        st.markdown("""
-        - ✅ DeepSeek-OCR
-        - ✅ ChromaDB Vector Store
-        - ✅ Ollama (Local LLM)
-        - ✅ Gemini API
-        """)
-
-    st.markdown("---")
-
-    # Technology stack
-    st.markdown("## 💻 Technology Stack")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.markdown("**OCR & Processing**")
-        st.markdown("- DeepSeek-OCR")
-        st.markdown("- vLLM")
-        st.markdown("- PyMuPDF")
-        st.markdown("- Pillow")
-
-    with col2:
-        st.markdown("**Vector Database**")
-        st.markdown("- ChromaDB")
-        st.markdown("- Sentence Transformers")
-        st.markdown("- FAISS Indexing")
-
-    with col3:
-        st.markdown("**LLM Integration**")
-        st.markdown("- Ollama (Llama 3.3)")
-        st.markdown("- Google Gemini")
-        st.markdown("- Query Routing")
-
-    with col4:
-        st.markdown("**Advanced Features**")
-        st.markdown("- Entity Extraction")
-        st.markdown("- Summarization")
-        st.markdown("- Document Comparison")
-        st.markdown("- Citation Generation")
+def init_session_state():
+    """Initialize session state"""
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
+    if 'documents' not in st.session_state:
+        st.session_state.documents = []
+    if 'rag_pipeline' not in st.session_state:
+        st.session_state.rag_pipeline = None
 
 
-def main():
-    """Main application"""
-    # Sidebar navigation
+def render_sidebar():
+    """Render modern sidebar"""
     with st.sidebar:
-        st.image("https://via.placeholder.com/200x80/667eea/ffffff?text=SmartDoc", use_column_width=True)
+        st.markdown("# 📄 SmartDoc")
+        st.caption("AI-Powered Document Intelligence")
 
-        st.markdown("## Navigation")
+        st.markdown("---")
 
-        # Navigation buttons
-        if st.button("🏠 Home", use_container_width=True):
-            st.session_state.page = "home"
+        # Documents section
+        st.markdown("### 📚 Documents")
 
-        if st.button("📤 Upload Documents", use_container_width=True):
-            st.session_state.page = "upload"
-
-        if st.button("💬 Chat & Q&A", use_container_width=True):
-            st.session_state.page = "chat"
-
-        if st.button("📚 Browse Documents", use_container_width=True):
-            st.session_state.page = "documents"
-
-        if st.button("📊 Analysis", use_container_width=True):
-            st.session_state.page = "analysis"
-
-        if st.button("⚙️ Settings", use_container_width=True):
-            st.session_state.page = "settings"
+        if st.session_state.documents:
+            for doc in st.session_state.documents[-5:]:  # Show last 5
+                with st.container():
+                    col1, col2 = st.columns([4, 1])
+                    with col1:
+                        st.caption(f"📄 {doc['name'][:25]}...")
+                    with col2:
+                        if st.button("×", key=f"remove_{doc['id']}", help="Remove"):
+                            st.session_state.documents.remove(doc)
+                            st.rerun()
+        else:
+            st.info("No documents uploaded yet")
 
         st.markdown("---")
 
         # Quick actions
-        st.markdown("### Quick Actions")
+        st.markdown("### ⚡ Quick Actions")
 
-        if st.button("🔍 Search Documents", use_container_width=True):
-            st.session_state.page = "search"
+        actions = [
+            ("📝", "Summarize", "summarize"),
+            ("🔍", "Extract Entities", "entities"),
+            ("🔄", "Compare Docs", "compare"),
+            ("📚", "Generate Citation", "citation"),
+        ]
 
-        if st.button("📝 Generate Summary", use_container_width=True):
-            st.session_state.page = "summarize"
-
-        if st.button("🔗 Generate Citation", use_container_width=True):
-            st.session_state.page = "citation"
+        for icon, label, action in actions:
+            if st.button(f"{icon} {label}", key=f"action_{action}", use_container_width=True):
+                handle_quick_action(action)
 
         st.markdown("---")
 
-        # Info
-        st.markdown("### ℹ️ About")
-        st.caption("Smart Document Intelligence Platform v1.0")
-        st.caption("Powered by DeepSeek-OCR, Ollama, and Gemini")
+        # Settings
+        st.markdown("### ⚙️ Settings")
 
-    # Initialize page state
-    if 'page' not in st.session_state:
-        st.session_state.page = "home"
+        llm_mode = st.radio(
+            "LLM Mode",
+            ["Auto", "Local (Ollama)", "Cloud (Gemini)"],
+            key="llm_mode",
+            label_visibility="collapsed"
+        )
 
-    # Display appropriate page
-    if st.session_state.page == "home":
-        show_home_page()
-    elif st.session_state.page == "upload":
-        from pages.upload_page import show_upload_page
-        show_upload_page()
-    elif st.session_state.page == "chat":
-        from pages.chat_page import show_chat_page
-        show_chat_page()
-    elif st.session_state.page == "documents":
-        from pages.documents_page import show_documents_page
-        show_documents_page()
-    elif st.session_state.page == "analysis":
-        from pages.analysis_page import show_analysis_page
-        show_analysis_page()
-    elif st.session_state.page == "settings":
-        show_settings_page()
-    else:
-        # Redirect any other page to home
-        st.session_state.page = "home"
+        show_sources = st.checkbox("Show sources", value=True, key="show_sources")
+
+        st.markdown("---")
+
+        # Stats
+        st.markdown("### 📊 Stats")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Messages", len(st.session_state.messages))
+        with col2:
+            st.metric("Docs", len(st.session_state.documents))
+
+        # Clear chat
+        if st.button("🗑️ Clear Chat", use_container_width=True):
+            st.session_state.messages = []
+            st.rerun()
+
+
+def render_chat():
+    """Render main chat interface"""
+    st.markdown('<div class="main-chat">', unsafe_allow_html=True)
+
+    # Welcome message
+    if not st.session_state.messages:
+        st.markdown("""
+        <div style="text-align: center; padding: 3rem 1rem;">
+            <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">📄 Smart Document Intelligence</h1>
+            <p style="font-size: 1.2rem; color: #666;">Upload documents and ask anything</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Quick start suggestions
+        st.markdown("### 💡 Try asking:")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if st.button("📄 Upload a document", use_container_width=True):
+                st.info("Click the 📎 button below to upload files")
+            if st.button("🔍 Extract key information", use_container_width=True):
+                add_message("Extract all key information from the documents")
+
+        with col2:
+            if st.button("📝 Summarize documents", use_container_width=True):
+                add_message("Summarize the main points")
+            if st.button("❓ Ask a question", use_container_width=True):
+                st.info("Type your question in the chat box below")
+
+    # Display messages
+    for msg in st.session_state.messages:
+        if msg["role"] == "user":
+            with st.chat_message("user"):
+                st.markdown(msg["content"])
+                # Show attached files
+                if "files" in msg:
+                    for file in msg["files"]:
+                        st.markdown(f'<span class="doc-chip">📎 {file}</span>', unsafe_allow_html=True)
+
+        else:  # assistant
+            with st.chat_message("assistant"):
+                st.markdown(msg["content"])
+
+                # Show sources if available
+                if st.session_state.show_sources and "sources" in msg and msg["sources"]:
+                    with st.expander(f"📚 {len(msg['sources'])} sources"):
+                        for i, source in enumerate(msg["sources"][:3], 1):
+                            st.markdown(f"**{i}.** `{source['doc_id']}` (score: {source['score']:.2f})")
+                            st.code(source['text'][:150] + "...")
+
+                # Show action buttons if present
+                if "actions" in msg:
+                    cols = st.columns(len(msg["actions"]))
+                    for col, (label, action) in zip(cols, msg["actions"].items()):
+                        with col:
+                            if st.button(label, key=f"action_{msg['id']}_{action}"):
+                                handle_action(action)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+def render_input():
+    """Render chat input with file upload"""
+    col1, col2 = st.columns([6, 1])
+
+    with col1:
+        user_input = st.chat_input("Ask anything about your documents...")
+
+    with col2:
+        # File upload button (styled)
+        uploaded_files = st.file_uploader(
+            "📎",
+            type=["pdf", "png", "jpg", "jpeg"],
+            accept_multiple_files=True,
+            label_visibility="collapsed",
+            key=f"file_upload_{len(st.session_state.messages)}"
+        )
+
+    # Handle file upload
+    if uploaded_files:
+        process_uploads(uploaded_files)
+
+    # Handle text input
+    if user_input:
+        handle_user_input(user_input)
+
+
+def process_uploads(uploaded_files):
+    """Process uploaded files in background"""
+    with st.spinner(f"Processing {len(uploaded_files)} file(s)..."):
+        from backend.pipeline import DocumentPipeline
+
+        try:
+            pipeline = DocumentPipeline(load_ocr_model=False, enable_vectordb=True)
+
+            processed_files = []
+
+            for file in uploaded_files:
+                # Save temp file
+                with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.name).suffix) as tmp:
+                    tmp.write(file.getvalue())
+                    tmp_path = tmp.name
+
+                # Process based on type
+                if file.name.endswith('.pdf'):
+                    result = pipeline.process_pdf(tmp_path, prompt_type="document")
+                else:
+                    result = pipeline.process_image(tmp_path, prompt_type="document", enhance=True)
+
+                # Add to documents
+                st.session_state.documents.append({
+                    'id': result['doc_id'],
+                    'name': file.name,
+                    'type': 'pdf' if file.name.endswith('.pdf') else 'image',
+                    'uploaded': datetime.now().strftime("%H:%M")
+                })
+
+                processed_files.append(file.name)
+
+                # Clean up
+                os.unlink(tmp_path)
+
+            # Add system message
+            file_list = ", ".join(processed_files)
+            add_message(
+                f"Uploaded and processed: {file_list}",
+                role="assistant",
+                actions={
+                    "📝 Summarize": "summarize",
+                    "🔍 Extract Info": "entities",
+                    "❓ Ask Question": "question"
+                }
+            )
+
+            st.rerun()
+
+        except Exception as e:
+            st.error(f"Error processing files: {e}")
+
+
+def handle_user_input(user_input):
+    """Handle user chat input"""
+    # Add user message
+    add_message(user_input, role="user")
+
+    # Check if there are documents
+    if not st.session_state.documents:
+        add_message(
+            "Please upload some documents first! Click the 📎 button to attach files.",
+            role="assistant"
+        )
+        st.rerun()
+        return
+
+    # Process with RAG
+    with st.spinner("Thinking..."):
+        try:
+            from backend.features.rag_pipeline import CompleteRAGPipeline
+            from backend.llm.query_router import LLMType
+
+            # Initialize RAG if needed
+            if st.session_state.rag_pipeline is None:
+                st.session_state.rag_pipeline = CompleteRAGPipeline(
+                    collection_name="documents",
+                    prefer_local=(st.session_state.llm_mode == "Local (Ollama)")
+                )
+
+            # Map LLM mode
+            llm_map = {
+                "Auto": LLMType.AUTO,
+                "Local (Ollama)": LLMType.OLLAMA,
+                "Cloud (Gemini)": LLMType.GEMINI
+            }
+
+            # Query
+            response = st.session_state.rag_pipeline.query(
+                query=user_input,
+                top_k=5,
+                llm_type=llm_map[st.session_state.llm_mode],
+                temperature=0.7,
+                include_sources=True
+            )
+
+            # Add assistant message
+            add_message(
+                response.answer,
+                role="assistant",
+                sources=response.sources if st.session_state.show_sources else None
+            )
+
+            st.rerun()
+
+        except Exception as e:
+            add_message(
+                f"Sorry, I encountered an error: {str(e)}",
+                role="assistant"
+            )
+            st.rerun()
+
+
+def add_message(content, role="user", **kwargs):
+    """Add message to chat history"""
+    message = {
+        "id": len(st.session_state.messages),
+        "role": role,
+        "content": content,
+        "timestamp": datetime.now().strftime("%H:%M"),
+        **kwargs
+    }
+    st.session_state.messages.append(message)
+
+
+def handle_quick_action(action):
+    """Handle quick action buttons"""
+    if not st.session_state.documents:
+        st.warning("Upload documents first!")
+        return
+
+    actions = {
+        "summarize": "Summarize all documents in bullet points",
+        "entities": "Extract all entities (people, organizations, dates, emails) from the documents",
+        "compare": "Compare the documents and highlight similarities and differences",
+        "citation": "Generate APA citations for all documents"
+    }
+
+    if action in actions:
+        add_message(actions[action], role="user")
         st.rerun()
 
 
-def show_settings_page():
-    """Settings page"""
-    st.title("⚙️ Settings")
-    st.markdown("Configure the Smart Document Intelligence Platform")
+def handle_action(action):
+    """Handle inline action buttons"""
+    # Implement specific actions
+    pass
 
-    st.markdown("### 🔧 System Configuration")
 
-    # LLM Settings
-    with st.expander("🤖 LLM Settings", expanded=True):
-        st.markdown("#### Ollama (Local LLM)")
-        ollama_url = st.text_input("Ollama Server URL", value="http://localhost:11434")
-        ollama_model = st.text_input("Default Model", value="llama3.3")
-
-        if st.button("Test Ollama Connection"):
-            st.info("Testing Ollama connection...")
-
-        st.markdown("---")
-
-        st.markdown("#### Gemini (Cloud LLM)")
-        gemini_api_key = st.text_input("Gemini API Key", type="password", help="Get API key from Google AI Studio")
-        gemini_model = st.text_input("Model", value="gemini-2.0-flash")
-
-        if st.button("Test Gemini Connection"):
-            st.info("Testing Gemini connection...")
-
-    # Vector DB Settings
-    with st.expander("🔍 Vector Database Settings"):
-        st.markdown("#### ChromaDB")
-        chroma_path = st.text_input("ChromaDB Path", value="./chroma_storage")
-        embedding_model = st.text_input("Embedding Model", value="all-MiniLM-L6-v2")
-
-        if st.button("Test ChromaDB Connection"):
-            st.info("Testing ChromaDB connection...")
-
-    # OCR Settings
-    with st.expander("📄 OCR Settings"):
-        st.markdown("#### DeepSeek-OCR")
-        base_size = st.select_slider("Base Resolution", options=[512, 640, 1024, 1280], value=1024)
-        crop_mode = st.checkbox("Enable Crop Mode (Gundam)", value=True)
-        max_crops = st.slider("Max Crops", 1, 10, 6)
-
-    # Save settings
-    if st.button("💾 Save Settings", type="primary"):
-        st.success("✅ Settings saved!")
+def main():
+    """Main application"""
+    init_session_state()
+    render_sidebar()
+    render_chat()
+    render_input()
 
 
 if __name__ == "__main__":
