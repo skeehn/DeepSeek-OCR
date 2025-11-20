@@ -11,13 +11,31 @@ A powerful document processing system that combines DeepSeek-OCR, local LLMs (Ol
 - **Document Storage**: Organized file management with metadata
 - **Batch Processing**: Process multiple documents efficiently
 
-### Phase 2-5: Coming Soon
-- Vector database integration (ChromaDB)
-- Dual LLM system (Ollama + Gemini)
-- RAG-based Q&A
-- Document comparison
-- Entity extraction
-- Web UI (Streamlit)
+### Phase 2: Vector Database & RAG (✅ Complete)
+- **ChromaDB Integration**: Vector storage with collections and metadata
+- **Semantic Embeddings**: sentence-transformers for text embeddings
+- **Document Retrieval**: Similarity search with scoring and filtering
+- **RAG Engine**: Context retrieval and prompt building
+
+### Phase 3: LLM Integration (✅ Complete)
+- **Dual LLM System**: Ollama (local) + Gemini (cloud)
+- **Query Routing**: Intelligent LLM selection (privacy vs performance)
+- **Answer Generation**: Context-aware responses
+- **Conversational RAG**: Multi-turn dialogue support
+
+### Phase 4: Advanced Features (✅ Complete)
+- **Entity Extraction**: Pattern-based and LLM-based NER
+- **Document Comparison**: Similarity analysis and diff generation
+- **Auto-Summarization**: Extractive, abstractive, and hierarchical strategies
+- **Export Functionality**: JSON, Markdown, and HTML export
+- **Citation Generator**: APA, MLA, and Chicago style citations
+
+### Phase 5: Web Interface (Coming Soon)
+- Streamlit web UI
+- Document upload interface
+- Interactive chat with RAG
+- Visualization and analytics
+- Export options in UI
 
 ## 🚀 Quick Start
 
@@ -284,29 +302,41 @@ docs = storage.list_documents(status="processed")
 
 ## 🔮 Roadmap
 
-### Phase 2: Vector Database & RAG (Next)
-- [ ] ChromaDB integration
-- [ ] Embedding generation
-- [ ] Semantic search
-- [ ] Document retrieval
+### Phase 1: Core OCR Pipeline ✅
+- [x] DeepSeek-OCR integration
+- [x] PDF/image processing
+- [x] Smart chunking strategies
+- [x] Document storage system
 
-### Phase 3: Dual LLM Integration
-- [ ] Ollama setup (Llama 3.3, Mistral)
-- [ ] Gemini API integration
-- [ ] Query routing logic
-- [ ] Response synthesis
+### Phase 2: Vector Database & RAG ✅
+- [x] ChromaDB integration
+- [x] Embedding generation
+- [x] Semantic search
+- [x] Document retrieval
+- [x] RAG engine
 
-### Phase 4: Advanced Features
-- [ ] Document comparison
-- [ ] Entity extraction
-- [ ] Auto-summarization
-- [ ] Export functionality
+### Phase 3: Dual LLM Integration ✅
+- [x] Ollama setup (Llama 3.3, Mistral)
+- [x] Gemini API integration
+- [x] Query routing logic
+- [x] Response synthesis
+- [x] Conversational RAG
 
-### Phase 5: Web Interface
-- [ ] Streamlit UI
-- [ ] Upload interface
-- [ ] Query interface
-- [ ] Document viewer
+### Phase 4: Advanced Features ✅
+- [x] Document comparison engine
+- [x] Entity extraction (pattern + LLM)
+- [x] Auto-summarization (extractive, abstractive, hierarchical)
+- [x] Export functionality (JSON, Markdown, HTML)
+- [x] Citation generator (APA, MLA, Chicago)
+
+### Phase 5: Web Interface (Next) 🚧
+- [ ] Streamlit UI framework
+- [ ] Document upload interface
+- [ ] Interactive chat with RAG
+- [ ] Query interface with streaming
+- [ ] Document viewer with highlighting
+- [ ] Results visualization
+- [ ] Export options in UI
 
 ## 🐛 Troubleshooting
 
@@ -360,6 +390,13 @@ For issues and questions:
 
 ---
 
-**Status**: Phase 1 Complete ✅ | Phase 2 In Progress 🚧
+**Status**: Phases 1-4 Complete ✅ | Phase 5 (UI) Next 🚧
 
-**Built with**: DeepSeek-OCR, vLLM, PyMuPDF, Pillow, and more.
+**Built with**: DeepSeek-OCR, vLLM, ChromaDB, Ollama, Gemini, PyMuPDF, sentence-transformers, and more.
+
+## 📚 Additional Documentation
+
+- [Phase 1 Complete](../PHASE1_COMPLETE.md) - Core OCR Pipeline
+- [Phase 2 Complete](../PHASE2_COMPLETE.md) - Vector Database & RAG
+- [Phase 3 Complete](../PHASE3_COMPLETE.md) - LLM Integration
+- [Phase 4 Complete](../PHASE4_COMPLETE.md) - Advanced Features
