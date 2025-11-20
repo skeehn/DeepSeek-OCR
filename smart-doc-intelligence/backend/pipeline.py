@@ -17,19 +17,35 @@ from backend.utils.chunking import DocumentChunker
 from backend.utils.storage import DocumentStorage
 from backend.utils.config import get_config
 
+# Phase 2: Vector database imports
+try:
+    from backend.vectordb.retrieval import DocumentRetriever
+    VECTORDB_AVAILABLE = True
+except ImportError:
+    VECTORDB_AVAILABLE = False
+    print("⚠️ Vector database not available (install chromadb and sentence-transformers)")
+
 
 class DocumentPipeline:
     """
     Main pipeline for processing documents
-    Handles: Upload → OCR → Chunking → Storage
+    Phase 1: Upload → OCR → Chunking → Storage
+    Phase 2: Upload → OCR → Chunking → Storage → Indexing (Vector DB)
     """
 
-    def __init__(self, load_ocr_model: bool = False):
+    def __init__(
+        self,
+        load_ocr_model: bool = False,
+        enable_vectordb: bool = False,
+        collection_name: str = "documents"
+    ):
         """
         Initialize pipeline
 
         Args:
             load_ocr_model: Whether to load OCR model immediately
+            enable_vectordb: Enable vector database indexing (Phase 2)
+            collection_name: ChromaDB collection name
         """
         self.config = get_config()
 
@@ -47,7 +63,15 @@ class DocumentPipeline:
         if load_ocr_model:
             self.load_ocr()
 
-        print("✅ Document Pipeline initialized")
+        # Phase 2: Vector database
+        self.retriever = None
+        self.enable_vectordb = enable_vectordb and VECTORDB_AVAILABLE
+
+        if self.enable_vectordb:
+            self.retriever = DocumentRetriever(collection_name=collection_name)
+            print("✅ Document Pipeline initialized (with Vector DB)")
+        else:
+            print("✅ Document Pipeline initialized")
 
     def load_ocr(self, batch_mode: bool = False):
         """Load DeepSeek-OCR model"""
@@ -150,9 +174,16 @@ class DocumentPipeline:
                 }
             )
 
+        # Step 6: Index in vector database (Phase 2)
+        if self.enable_vectordb and doc_id:
+            print(f"   Indexing in vector database...")
+            self.retriever.index_document(doc_id, chunk_dicts)
+
         print(f"✅ Processing complete!")
         print(f"   Total text: {len(combined_text)} characters")
         print(f"   Chunks: {len(chunks)}")
+        if self.enable_vectordb:
+            print(f"   ✅ Indexed in vector database")
 
         return {
             "success": True,
@@ -251,9 +282,16 @@ class DocumentPipeline:
                 }
             )
 
+        # Step 6: Index in vector database (Phase 2)
+        if self.enable_vectordb and doc_id:
+            print("   Indexing in vector database...")
+            self.retriever.index_document(doc_id, chunk_dicts)
+
         print(f"✅ Processing complete!")
         print(f"   Text length: {len(extracted_text)} characters")
         print(f"   Chunks: {len(chunks)}")
+        if self.enable_vectordb:
+            print(f"   ✅ Indexed in vector database")
 
         return {
             "success": True,
@@ -328,9 +366,85 @@ class DocumentPipeline:
         """List all documents"""
         return self.storage.list_documents()
 
+    def search_documents(
+        self,
+        query: str,
+        top_k: int = 5,
+        filter_doc_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Search documents using semantic search (Phase 2 feature)
+
+        Args:
+            query: Search query text
+            top_k: Number of results to return
+            filter_doc_id: Optional document ID filter
+
+        Returns:
+            List of search results
+        """
+        if not self.enable_vectordb:
+            print("⚠️ Vector database not enabled. Enable with enable_vectordb=True")
+            return []
+
+        results = self.retriever.search(
+            query=query,
+            top_k=top_k,
+            filter_doc_id=filter_doc_id
+        )
+
+        return [r.to_dict() for r in results]
+
+    def query_document(
+        self,
+        query: str,
+        doc_id: Optional[str] = None,
+        top_k: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Query documents and get relevant context (Phase 2 feature)
+
+        Args:
+            query: Query text
+            doc_id: Optional specific document ID
+            top_k: Number of chunks to retrieve
+
+        Returns:
+            Query results with context
+        """
+        if not self.enable_vectordb:
+            return {
+                "error": "Vector database not enabled",
+                "query": query
+            }
+
+        # Import RAG engine
+        from backend.features.rag_engine import RAGEngine
+
+        # Create RAG engine with same collection
+        rag_engine = RAGEngine(
+            collection_name=self.retriever.collection_name
+        )
+
+        # Execute query
+        result = rag_engine.query(
+            query_text=query,
+            top_k=top_k,
+            filter_doc_id=doc_id
+        )
+
+        return result
+
     def get_statistics(self) -> Dict[str, Any]:
         """Get pipeline statistics"""
-        return self.storage.get_storage_stats()
+        stats = self.storage.get_storage_stats()
+
+        # Add vector database stats if enabled
+        if self.enable_vectordb:
+            vectordb_stats = self.retriever.get_statistics()
+            stats["vectordb"] = vectordb_stats
+
+        return stats
 
 
 # Example usage
