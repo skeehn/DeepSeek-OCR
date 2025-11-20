@@ -1,0 +1,98 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+
+# Storage directories
+storage/uploads/*
+storage/processed/*
+storage/metadata/*
+storage/chroma_db/*
+!storage/.gitkeep
+
+# Keep directory structure
+!storage/uploads/.gitkeep
+!storage/processed/.gitkeep
+!storage/metadata/.gitkeep
+!storage/chroma_db/.gitkeep
+
+# Models
+models/*
+!models/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Large files
+*.pdf
+*.zip
+*.tar.gz
+*.pth
+*.bin
+*.safetensors
+
+# vLLM cache
+.cache/
+
+# Streamlit
+.streamlit/

@@ -1,0 +1,45 @@
+# Core OCR Dependencies (Phase 1)
+transformers==4.46.3
+tokenizers==0.20.3
+PyMuPDF==1.24.0
+img2pdf==0.5.1
+Pillow==10.2.0
+einops
+easydict
+addict
+
+# Vector DB & Embeddings (Phase 2)
+chromadb==0.4.22
+sentence-transformers==2.3.1
+
+# LLM Integration (Phase 3)
+google-genai==0.2.0
+ollama==0.1.6
+langchain==0.1.0
+langchain-community==0.0.10
+
+# Core utilities
+numpy==1.26.3
+pandas==2.1.4
+pydantic==2.5.3
+python-dotenv==1.0.0
+tqdm==4.66.1
+PyYAML==6.0.1
+
+# UI (Phase 5)
+streamlit==1.30.0
+streamlit-extras==0.3.6
+plotly==5.18.0
+
+# API (Optional)
+fastapi==0.109.0
+uvicorn==0.27.0
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+
+# Note: vLLM and flash-attn need special installation
+# pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu118
+# Download vLLM wheel from: https://github.com/vllm-project/vllm/releases/tag/v0.8.5
+# pip install flash-attn==2.7.3 --no-build-isolation
