@@ -13,10 +13,8 @@ chromadb==0.4.22
 sentence-transformers==2.3.1
 
 # LLM Integration (Phase 3)
-google-genai==0.2.0
-ollama==0.1.6
-langchain==0.1.0
-langchain-community==0.0.10
+google-generativeai==0.8.3  # Gemini API
+requests==2.31.0  # For Ollama HTTP client
 
 # Core utilities
 numpy==1.26.3
@@ -43,3 +41,8 @@ pytest-asyncio==0.23.3
 # pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu118
 # Download vLLM wheel from: https://github.com/vllm-project/vllm/releases/tag/v0.8.5
 # pip install flash-attn==2.7.3 --no-build-isolation
+
+# Ollama Installation (for local LLMs):
+# 1. Install Ollama: https://ollama.com/download
+# 2. Start server: ollama serve
+# 3. Pull models: ollama pull llama3.3 && ollama pull mistral
