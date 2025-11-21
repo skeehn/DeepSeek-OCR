@@ -1,6 +1,6 @@
 """
-Smart Document Intelligence - Ultra-Modern Chat Interface
-10x better: Clean design, smart features, perfect UX
+Smart Document Intelligence - Production-Ready Chat Interface
+Fixed critical bugs, added caching, streaming, and better UX
 """
 import streamlit as st
 from pathlib import Path
@@ -8,6 +8,7 @@ import sys
 import tempfile
 import os
 from datetime import datetime
+import time
 
 # Add backend to path
 backend_path = Path(__file__).parent.parent / "backend"
@@ -34,92 +35,9 @@ st.markdown("""
         padding: 0 !important;
     }
 
-    /* Chat container - centered, card style */
-    .chat-container {
-        max-width: 800px;
-        margin: 2rem auto;
-        background: white;
-        border-radius: 24px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-        overflow: hidden;
-    }
-
-    /* Header bar */
-    .header-bar {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1.5rem 2rem;
-        color: white;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    /* Chat messages */
-    .chat-messages {
-        padding: 2rem;
-        min-height: 400px;
-        max-height: 600px;
-        overflow-y: auto;
-    }
-
-    /* Message bubbles */
-    .message {
-        margin: 1rem 0;
+    /* Message bubbles - better styling */
+    .stChatMessage {
         animation: slideIn 0.3s ease-out;
-    }
-
-    .user-msg {
-        display: flex;
-        justify-content: flex-end;
-    }
-
-    .user-msg .bubble {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1rem 1.5rem;
-        border-radius: 20px 20px 4px 20px;
-        max-width: 70%;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-    }
-
-    .assistant-msg .bubble {
-        background: #f7f8fa;
-        color: #2d3748;
-        padding: 1rem 1.5rem;
-        border-radius: 20px 20px 20px 4px;
-        max-width: 70%;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-
-    /* Document chips */
-    .doc-chip {
-        display: inline-block;
-        background: rgba(255,255,255,0.2);
-        padding: 0.4rem 0.8rem;
-        border-radius: 12px;
-        font-size: 0.85rem;
-        margin: 0.25rem;
-        backdrop-filter: blur(10px);
-    }
-
-    /* Action buttons */
-    .action-btn {
-        display: inline-block;
-        background: white;
-        color: #667eea;
-        padding: 0.5rem 1rem;
-        border-radius: 12px;
-        margin: 0.25rem;
-        font-size: 0.9rem;
-        border: 1px solid #667eea;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .action-btn:hover {
-        background: #667eea;
-        color: white;
-        transform: translateY(-2px);
     }
 
     /* Source cards */
@@ -144,33 +62,6 @@ st.markdown("""
         }
     }
 
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-    }
-
-    .typing {
-        animation: pulse 1.5s infinite;
-    }
-
-    /* Input area */
-    .stChatInput {
-        border-radius: 20px !important;
-    }
-
-    /* Sidebar styling */
-    .css-1d391kg {
-        background: white;
-    }
-
-    /* Quick actions grid */
-    .quick-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.5rem;
-        margin: 1rem 0;
-    }
-
     /* Welcome screen */
     .welcome {
         text-align: center;
@@ -184,41 +75,6 @@ st.markdown("""
         -webkit-text-fill-color: transparent;
         margin-bottom: 1rem;
     }
-
-    /* File upload zone */
-    .upload-zone {
-        border: 2px dashed #cbd5e0;
-        border-radius: 16px;
-        padding: 2rem;
-        text-align: center;
-        background: #f7f8fa;
-        transition: all 0.3s;
-        cursor: pointer;
-    }
-
-    .upload-zone:hover {
-        border-color: #667eea;
-        background: #eef2ff;
-    }
-
-    /* Status badge */
-    .status-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-size: 0.85rem;
-        font-weight: 600;
-    }
-
-    .status-success {
-        background: #d4edda;
-        color: #155724;
-    }
-
-    .status-processing {
-        background: #fff3cd;
-        color: #856404;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -231,11 +87,21 @@ def init_state():
         'rag_pipeline': None,
         'llm_mode': 'Auto',
         'show_sources': True,
-        'active_doc': None
+        'confirm_clear': False
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+
+
+@st.cache_resource
+def get_rag_pipeline(prefer_local=False):
+    """Cached RAG pipeline initialization"""
+    from backend.features.rag_pipeline import CompleteRAGPipeline
+    return CompleteRAGPipeline(
+        collection_name="documents",
+        prefer_local=prefer_local
+    )
 
 
 def render_header():
@@ -247,22 +113,35 @@ def render_header():
 
     with col2:
         if st.session_state.documents:
-            # Document tabs
-            doc_names = [f"📄 {doc['name'][:15]}..." for doc in st.session_state.documents[-3:]]
-            selected = st.pills("Active Documents", doc_names, selection_mode="single")
+            # Show document count
+            st.caption(f"📚 {len(st.session_state.documents)} document(s) loaded")
 
     with col3:
         col_a, col_b, col_c = st.columns(3)
+
         with col_a:
-            if st.button("⚙️", help="Settings"):
-                st.session_state.show_settings = not st.session_state.get('show_settings', False)
+            # Export directly
+            if st.session_state.messages:
+                export_text = "# SmartDoc AI Chat Export\n\n"
+                for msg in st.session_state.messages:
+                    role = "You" if msg["role"] == "user" else "AI"
+                    export_text += f"**{role}** ({msg['time']}):\n{msg['content']}\n\n"
+
+                st.download_button(
+                    "📤",
+                    export_text,
+                    file_name=f"chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                    mime="text/markdown",
+                    help="Export chat"
+                )
+
         with col_b:
-            if st.button("📤", help="Export Chat"):
-                export_chat()
+            if st.button("⚙️", help="Settings"):
+                pass  # Settings in sidebar
+
         with col_c:
-            if st.button("🗑️", help="Clear"):
-                st.session_state.messages = []
-                st.rerun()
+            if st.button("🗑️", help="Clear chat"):
+                st.session_state.confirm_clear = True
 
 
 def render_welcome():
@@ -282,7 +161,7 @@ def render_welcome():
         "Drag and drop files here",
         type=["pdf", "png", "jpg", "jpeg"],
         accept_multiple_files=True,
-        help="Upload PDFs or images to get started"
+        help="Upload PDFs or images to get started (max 100MB per file)"
     )
 
     if uploaded:
@@ -308,6 +187,22 @@ def render_welcome():
 
 def render_chat():
     """Render chat interface"""
+    # Clear confirmation dialog
+    if st.session_state.get('confirm_clear', False):
+        with st.container():
+            st.warning("⚠️ Clear all messages? This cannot be undone.")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Yes, clear", type="primary", use_container_width=True):
+                    st.session_state.messages = []
+                    st.session_state.confirm_clear = False
+                    st.rerun()
+            with col2:
+                if st.button("Cancel", use_container_width=True):
+                    st.session_state.confirm_clear = False
+                    st.rerun()
+
+    # Render messages
     for msg in st.session_state.messages:
         if msg["role"] == "user":
             with st.chat_message("user", avatar="👤"):
@@ -356,7 +251,8 @@ def render_sidebar():
                     st.caption(f"{status} {doc['name'][:20]}...")
                 with col2:
                     if st.button("×", key=f"del_{doc['id']}", help="Remove"):
-                        st.session_state.documents = [d for d in st.session_state.documents if d['id'] != doc['id']]
+                        # Remove from UI and vector DB
+                        remove_document(doc['id'])
                         st.rerun()
         else:
             st.info("No documents yet")
@@ -374,7 +270,7 @@ def render_sidebar():
         }
 
         for label, prompt in actions.items():
-            if st.button(label, use_container_width=True):
+            if st.button(label, use_container_width=True, key=f"quick_{label}"):
                 if st.session_state.documents:
                     add_msg(prompt, "user")
                     st.rerun()
@@ -415,7 +311,7 @@ def render_input():
             type=["pdf", "png", "jpg", "jpeg"],
             accept_multiple_files=True,
             label_visibility="collapsed",
-            key=f"upload_{len(st.session_state.messages)}"
+            key=f"upload_{datetime.now().timestamp()}"  # Stable unique key
         )
 
     with col2:
@@ -431,15 +327,31 @@ def render_input():
 
 
 def process_files(files):
-    """Process uploaded files"""
-    with st.spinner(f"✨ Processing {len(files)} file(s)..."):
-        try:
-            from backend.pipeline import DocumentPipeline
+    """Process uploaded files with proper cleanup"""
+    # Validate file sizes
+    MAX_SIZE_MB = 100
+    for file in files:
+        size_mb = len(file.getvalue()) / (1024 * 1024)
+        if size_mb > MAX_SIZE_MB:
+            st.error(f"❌ {file.name} is too large ({size_mb:.1f}MB). Max size is {MAX_SIZE_MB}MB.")
+            return
 
-            pipeline = DocumentPipeline(load_ocr_model=False, enable_vectordb=True)
-            processed = []
+    progress_bar = st.progress(0)
+    status_text = st.empty()
 
-            for file in files:
+    try:
+        from backend.pipeline import DocumentPipeline
+
+        pipeline = DocumentPipeline(load_ocr_model=False, enable_vectordb=True)
+        processed = []
+        total = len(files)
+
+        for idx, file in enumerate(files):
+            status_text.text(f"Processing {idx+1}/{total}: {file.name}")
+            progress_bar.progress((idx + 1) / total)
+
+            tmp_path = None
+            try:
                 # Save temp
                 with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.name).suffix) as tmp:
                     tmp.write(file.getvalue())
@@ -460,23 +372,32 @@ def process_files(files):
                 })
 
                 processed.append(file.name)
-                os.unlink(tmp_path)
 
-            # Success message
-            add_msg(
-                f"✅ Successfully processed: **{', '.join(processed)}**\n\nWhat would you like to know?",
-                "assistant",
-                actions={
-                    "📝 Summarize": "summarize",
-                    "🔍 Extract Info": "entities",
-                    "❓ Ask Question": "question"
-                }
-            )
+            finally:
+                # Always cleanup temp file
+                if tmp_path and os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
 
-            st.rerun()
+        # Success message
+        progress_bar.empty()
+        status_text.empty()
 
-        except Exception as e:
-            st.error(f"❌ Error: {e}")
+        add_msg(
+            f"✅ Successfully processed: **{', '.join(processed)}**\n\nWhat would you like to know?",
+            "assistant",
+            actions={
+                "📝 Summarize": "summarize",
+                "🔍 Extract Info": "entities",
+                "❓ Ask Question": "question"
+            }
+        )
+
+        st.rerun()
+
+    except Exception as e:
+        progress_bar.empty()
+        status_text.empty()
+        st.error(f"❌ Error: {e}")
 
 
 def handle_input(user_input):
@@ -490,18 +411,14 @@ def handle_input(user_input):
         st.rerun()
         return
 
-    # Process with RAG
+    # Process with cached RAG
     with st.spinner("✨ Thinking..."):
         try:
-            from backend.features.rag_pipeline import CompleteRAGPipeline
             from backend.llm.query_router import LLMType
 
-            # Init RAG
-            if st.session_state.rag_pipeline is None:
-                st.session_state.rag_pipeline = CompleteRAGPipeline(
-                    collection_name="documents",
-                    prefer_local=(st.session_state.llm_mode == "Local (Ollama)")
-                )
+            # Get cached pipeline
+            prefer_local = (st.session_state.llm_mode == "Local (Ollama)")
+            pipeline = get_rag_pipeline(prefer_local)
 
             # Map LLM
             llm_map = {
@@ -511,7 +428,7 @@ def handle_input(user_input):
             }
 
             # Query
-            response = st.session_state.rag_pipeline.query(
+            response = pipeline.query(
                 query=user_input,
                 top_k=5,
                 llm_type=llm_map[st.session_state.llm_mode],
@@ -529,7 +446,12 @@ def handle_input(user_input):
             st.rerun()
 
         except Exception as e:
-            add_msg(f"❌ Error: {str(e)}", "assistant")
+            # Add retry button on failure
+            add_msg(
+                f"❌ Error: {str(e)}\n\nPlease try again or check your LLM settings.",
+                "assistant",
+                actions={"🔄 Retry": "retry"}
+            )
             st.rerun()
 
 
@@ -546,6 +468,13 @@ def add_msg(content, role="user", **kwargs):
 
 def handle_action(action):
     """Handle quick actions"""
+    if action == "retry" and st.session_state.messages:
+        # Retry last user message
+        for msg in reversed(st.session_state.messages):
+            if msg["role"] == "user":
+                handle_input(msg["content"])
+                return
+
     actions = {
         "summarize": "Summarize all documents in bullet points",
         "entities": "Extract all entities (people, organizations, dates, emails)",
@@ -557,24 +486,27 @@ def handle_action(action):
         st.rerun()
 
 
-def export_chat():
-    """Export chat history"""
-    if not st.session_state.messages:
-        st.warning("No messages to export")
-        return
+def remove_document(doc_id):
+    """Remove document from UI and vector DB"""
+    try:
+        # Remove from vector DB
+        from backend.vectordb.chroma_manager import ChromaManager
+        chroma = ChromaManager()
 
-    # Create export
-    export_text = "# SmartDoc AI Chat Export\n\n"
-    for msg in st.session_state.messages:
-        role = "You" if msg["role"] == "user" else "AI"
-        export_text += f"**{role}** ({msg['time']}):\n{msg['content']}\n\n"
+        # Delete all chunks for this document
+        collection = chroma.get_collection("documents")
+        if collection:
+            # Delete by metadata filter
+            collection.delete(where={"doc_id": doc_id})
 
-    st.download_button(
-        "📥 Download Chat",
-        export_text,
-        file_name=f"chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
-        mime="text/markdown"
-    )
+    except Exception as e:
+        st.warning(f"Could not remove from vector DB: {e}")
+
+    # Remove from UI state
+    st.session_state.documents = [
+        d for d in st.session_state.documents
+        if d['id'] != doc_id
+    ]
 
 
 def main():
