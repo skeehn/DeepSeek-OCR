@@ -1,6 +1,6 @@
 """
-Smart Document Intelligence - Modern Chat Interface
-Single-page app with chat at center, file upload integrated
+Smart Document Intelligence - Ultra-Modern Chat Interface
+10x better: Clean design, smart features, perfect UX
 """
 import streamlit as st
 from pathlib import Path
@@ -15,294 +15,457 @@ sys.path.insert(0, str(backend_path))
 
 # Page config
 st.set_page_config(
-    page_title="Smart Document Intelligence",
-    page_icon="📄",
+    page_title="SmartDoc AI",
+    page_icon="✨",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# Custom CSS - Modern, clean design
+# Ultra-modern CSS
 st.markdown("""
 <style>
-    /* Hide default Streamlit elements */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
+    /* Clean slate */
+    #MainMenu, footer, header {visibility: hidden;}
+    .stDeployButton {display: none;}
 
-    /* Modern chat container */
-    .main-chat {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 2rem 1rem;
+    /* Main layout */
+    .main {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        padding: 0 !important;
+    }
+
+    /* Chat container - centered, card style */
+    .chat-container {
+        max-width: 800px;
+        margin: 2rem auto;
+        background: white;
+        border-radius: 24px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    /* Header bar */
+    .header-bar {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1.5rem 2rem;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 
     /* Chat messages */
-    .chat-message {
-        padding: 1rem;
-        margin: 1rem 0;
-        border-radius: 0.75rem;
-        animation: fadeIn 0.3s;
+    .chat-messages {
+        padding: 2rem;
+        min-height: 400px;
+        max-height: 600px;
+        overflow-y: auto;
     }
 
-    .user-message {
+    /* Message bubbles */
+    .message {
+        margin: 1rem 0;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    .user-msg {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .user-msg .bubble {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        margin-left: 20%;
+        padding: 1rem 1.5rem;
+        border-radius: 20px 20px 4px 20px;
+        max-width: 70%;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
     }
 
-    .assistant-message {
-        background: #f7f7f8;
-        margin-right: 20%;
+    .assistant-msg .bubble {
+        background: #f7f8fa;
+        color: #2d3748;
+        padding: 1rem 1.5rem;
+        border-radius: 20px 20px 20px 4px;
+        max-width: 70%;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
 
     /* Document chips */
     .doc-chip {
         display: inline-block;
-        padding: 0.5rem 1rem;
+        background: rgba(255,255,255,0.2);
+        padding: 0.4rem 0.8rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
         margin: 0.25rem;
-        background: #e8f4f8;
-        border-radius: 1rem;
-        font-size: 0.9rem;
-        border: 1px solid #3498db;
+        backdrop-filter: blur(10px);
     }
 
-    /* Quick actions */
-    .quick-action {
+    /* Action buttons */
+    .action-btn {
+        display: inline-block;
         background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 0.5rem;
-        padding: 0.75rem;
-        margin: 0.5rem 0;
+        color: #667eea;
+        padding: 0.5rem 1rem;
+        border-radius: 12px;
+        margin: 0.25rem;
+        font-size: 0.9rem;
+        border: 1px solid #667eea;
         cursor: pointer;
         transition: all 0.2s;
     }
 
-    .quick-action:hover {
-        border-color: #667eea;
-        transform: translateX(4px);
+    .action-btn:hover {
+        background: #667eea;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    /* Source cards */
+    .source-card {
+        background: #f7f8fa;
+        border-left: 3px solid #667eea;
+        padding: 0.75rem;
+        margin: 0.5rem 0;
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+
+    /* Animations */
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .typing {
+        animation: pulse 1.5s infinite;
+    }
+
+    /* Input area */
+    .stChatInput {
+        border-radius: 20px !important;
     }
 
     /* Sidebar styling */
-    .sidebar-section {
-        padding: 1rem 0;
-        border-bottom: 1px solid #e0e0e0;
+    .css-1d391kg {
+        background: white;
     }
 
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
+    /* Quick actions grid */
+    .quick-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        margin: 1rem 0;
+    }
+
+    /* Welcome screen */
+    .welcome {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+
+    .welcome h1 {
+        font-size: 2.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1rem;
+    }
+
+    /* File upload zone */
+    .upload-zone {
+        border: 2px dashed #cbd5e0;
+        border-radius: 16px;
+        padding: 2rem;
+        text-align: center;
+        background: #f7f8fa;
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+
+    .upload-zone:hover {
+        border-color: #667eea;
+        background: #eef2ff;
+    }
+
+    /* Status badge */
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .status-success {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-processing {
+        background: #fff3cd;
+        color: #856404;
     }
 </style>
 """, unsafe_allow_html=True)
 
 
-def init_session_state():
+def init_state():
     """Initialize session state"""
-    if 'messages' not in st.session_state:
-        st.session_state.messages = []
-    if 'documents' not in st.session_state:
-        st.session_state.documents = []
-    if 'rag_pipeline' not in st.session_state:
-        st.session_state.rag_pipeline = None
+    defaults = {
+        'messages': [],
+        'documents': [],
+        'rag_pipeline': None,
+        'llm_mode': 'Auto',
+        'show_sources': True,
+        'active_doc': None
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+
+def render_header():
+    """Render top header"""
+    col1, col2, col3 = st.columns([2, 3, 2])
+
+    with col1:
+        st.markdown("### ✨ SmartDoc AI")
+
+    with col2:
+        if st.session_state.documents:
+            # Document tabs
+            doc_names = [f"📄 {doc['name'][:15]}..." for doc in st.session_state.documents[-3:]]
+            selected = st.pills("Active Documents", doc_names, selection_mode="single")
+
+    with col3:
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            if st.button("⚙️", help="Settings"):
+                st.session_state.show_settings = not st.session_state.get('show_settings', False)
+        with col_b:
+            if st.button("📤", help="Export Chat"):
+                export_chat()
+        with col_c:
+            if st.button("🗑️", help="Clear"):
+                st.session_state.messages = []
+                st.rerun()
+
+
+def render_welcome():
+    """Render welcome screen"""
+    st.markdown("""
+    <div class="welcome">
+        <h1>✨ SmartDoc AI</h1>
+        <p style="font-size: 1.2rem; color: #666; margin-bottom: 2rem;">
+            Your intelligent document assistant
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Upload zone
+    st.markdown("### 📎 Upload Documents")
+    uploaded = st.file_uploader(
+        "Drag and drop files here",
+        type=["pdf", "png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+        help="Upload PDFs or images to get started"
+    )
+
+    if uploaded:
+        process_files(uploaded)
+
+    # Quick start examples
+    st.markdown("### 💡 Or try these examples:")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("📝 Summarize a research paper", use_container_width=True):
+            st.info("👆 Upload a PDF first!")
+        if st.button("🔍 Extract key data from invoice", use_container_width=True):
+            st.info("👆 Upload a PDF first!")
+
+    with col2:
+        if st.button("📊 Compare multiple documents", use_container_width=True):
+            st.info("👆 Upload PDFs first!")
+        if st.button("📚 Generate citations", use_container_width=True):
+            st.info("👆 Upload a PDF first!")
+
+
+def render_chat():
+    """Render chat interface"""
+    for msg in st.session_state.messages:
+        if msg["role"] == "user":
+            with st.chat_message("user", avatar="👤"):
+                st.markdown(msg["content"])
+                if "files" in msg:
+                    st.caption("📎 " + ", ".join(msg["files"]))
+        else:
+            with st.chat_message("assistant", avatar="✨"):
+                st.markdown(msg["content"])
+
+                # Action buttons
+                if "actions" in msg:
+                    cols = st.columns(len(msg["actions"]))
+                    for col, (label, action_key) in zip(cols, msg["actions"].items()):
+                        with col:
+                            if st.button(label, key=f"btn_{msg['id']}_{action_key}", use_container_width=True):
+                                handle_action(action_key)
+
+                # Sources
+                if st.session_state.show_sources and "sources" in msg and msg["sources"]:
+                    with st.expander(f"📚 View {len(msg['sources'])} sources"):
+                        for i, src in enumerate(msg["sources"][:3], 1):
+                            st.markdown(f"""
+                            <div class="source-card">
+                                <strong>Source {i}</strong> • {src['doc_id']} • Score: {src['score']:.2f}<br>
+                                <code>{src['text'][:200]}...</code>
+                            </div>
+                            """, unsafe_allow_html=True)
 
 
 def render_sidebar():
-    """Render modern sidebar"""
+    """Render collapsible sidebar"""
     with st.sidebar:
-        st.markdown("# 📄 SmartDoc")
-        st.caption("AI-Powered Document Intelligence")
+        st.markdown("## 📄 SmartDoc AI")
+        st.caption("Intelligent Document Assistant")
 
         st.markdown("---")
 
-        # Documents section
+        # Documents
         st.markdown("### 📚 Documents")
-
         if st.session_state.documents:
-            for doc in st.session_state.documents[-5:]:  # Show last 5
-                with st.container():
-                    col1, col2 = st.columns([4, 1])
-                    with col1:
-                        st.caption(f"📄 {doc['name'][:25]}...")
-                    with col2:
-                        if st.button("×", key=f"remove_{doc['id']}", help="Remove"):
-                            st.session_state.documents.remove(doc)
-                            st.rerun()
+            for doc in st.session_state.documents:
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    status = "🟢" if doc.get('processed') else "🟡"
+                    st.caption(f"{status} {doc['name'][:20]}...")
+                with col2:
+                    if st.button("×", key=f"del_{doc['id']}", help="Remove"):
+                        st.session_state.documents = [d for d in st.session_state.documents if d['id'] != doc['id']]
+                        st.rerun()
         else:
-            st.info("No documents uploaded yet")
+            st.info("No documents yet")
 
         st.markdown("---")
 
         # Quick actions
         st.markdown("### ⚡ Quick Actions")
 
-        actions = [
-            ("📝", "Summarize", "summarize"),
-            ("🔍", "Extract Entities", "entities"),
-            ("🔄", "Compare Docs", "compare"),
-            ("📚", "Generate Citation", "citation"),
-        ]
+        actions = {
+            "📝 Summarize": "Summarize all documents in bullet points",
+            "🔍 Extract Entities": "Extract all people, organizations, dates, and emails",
+            "🔄 Compare": "Compare the documents and show similarities",
+            "📚 Citation": "Generate APA citation for the first document"
+        }
 
-        for icon, label, action in actions:
-            if st.button(f"{icon} {label}", key=f"action_{action}", use_container_width=True):
-                handle_quick_action(action)
+        for label, prompt in actions.items():
+            if st.button(label, use_container_width=True):
+                if st.session_state.documents:
+                    add_msg(prompt, "user")
+                    st.rerun()
+                else:
+                    st.warning("Upload documents first!")
 
         st.markdown("---")
 
         # Settings
         st.markdown("### ⚙️ Settings")
 
-        llm_mode = st.radio(
-            "LLM Mode",
+        st.session_state.llm_mode = st.selectbox(
+            "LLM",
             ["Auto", "Local (Ollama)", "Cloud (Gemini)"],
-            key="llm_mode",
             label_visibility="collapsed"
         )
 
-        show_sources = st.checkbox("Show sources", value=True, key="show_sources")
+        st.session_state.show_sources = st.toggle("Show sources", value=True)
 
         st.markdown("---")
 
         # Stats
-        st.markdown("### 📊 Stats")
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Messages", len(st.session_state.messages))
+            st.metric("💬", len(st.session_state.messages))
         with col2:
-            st.metric("Docs", len(st.session_state.documents))
-
-        # Clear chat
-        if st.button("🗑️ Clear Chat", use_container_width=True):
-            st.session_state.messages = []
-            st.rerun()
-
-
-def render_chat():
-    """Render main chat interface"""
-    st.markdown('<div class="main-chat">', unsafe_allow_html=True)
-
-    # Welcome message
-    if not st.session_state.messages:
-        st.markdown("""
-        <div style="text-align: center; padding: 3rem 1rem;">
-            <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">📄 Smart Document Intelligence</h1>
-            <p style="font-size: 1.2rem; color: #666;">Upload documents and ask anything</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Quick start suggestions
-        st.markdown("### 💡 Try asking:")
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            if st.button("📄 Upload a document", use_container_width=True):
-                st.info("Click the 📎 button below to upload files")
-            if st.button("🔍 Extract key information", use_container_width=True):
-                add_message("Extract all key information from the documents")
-
-        with col2:
-            if st.button("📝 Summarize documents", use_container_width=True):
-                add_message("Summarize the main points")
-            if st.button("❓ Ask a question", use_container_width=True):
-                st.info("Type your question in the chat box below")
-
-    # Display messages
-    for msg in st.session_state.messages:
-        if msg["role"] == "user":
-            with st.chat_message("user"):
-                st.markdown(msg["content"])
-                # Show attached files
-                if "files" in msg:
-                    for file in msg["files"]:
-                        st.markdown(f'<span class="doc-chip">📎 {file}</span>', unsafe_allow_html=True)
-
-        else:  # assistant
-            with st.chat_message("assistant"):
-                st.markdown(msg["content"])
-
-                # Show sources if available
-                if st.session_state.show_sources and "sources" in msg and msg["sources"]:
-                    with st.expander(f"📚 {len(msg['sources'])} sources"):
-                        for i, source in enumerate(msg["sources"][:3], 1):
-                            st.markdown(f"**{i}.** `{source['doc_id']}` (score: {source['score']:.2f})")
-                            st.code(source['text'][:150] + "...")
-
-                # Show action buttons if present
-                if "actions" in msg:
-                    cols = st.columns(len(msg["actions"]))
-                    for col, (label, action) in zip(cols, msg["actions"].items()):
-                        with col:
-                            if st.button(label, key=f"action_{msg['id']}_{action}"):
-                                handle_action(action)
-
-    st.markdown('</div>', unsafe_allow_html=True)
+            st.metric("📄", len(st.session_state.documents))
 
 
 def render_input():
-    """Render chat input with file upload"""
-    col1, col2 = st.columns([6, 1])
+    """Render chat input"""
+    # File upload inline
+    col1, col2 = st.columns([1, 6])
 
     with col1:
-        user_input = st.chat_input("Ask anything about your documents...")
-
-    with col2:
-        # File upload button (styled)
-        uploaded_files = st.file_uploader(
+        uploaded = st.file_uploader(
             "📎",
             type=["pdf", "png", "jpg", "jpeg"],
             accept_multiple_files=True,
             label_visibility="collapsed",
-            key=f"file_upload_{len(st.session_state.messages)}"
+            key=f"upload_{len(st.session_state.messages)}"
         )
 
-    # Handle file upload
-    if uploaded_files:
-        process_uploads(uploaded_files)
+    with col2:
+        user_input = st.chat_input("Ask anything about your documents...")
 
-    # Handle text input
+    # Handle upload
+    if uploaded:
+        process_files(uploaded)
+
+    # Handle input
     if user_input:
-        handle_user_input(user_input)
+        handle_input(user_input)
 
 
-def process_uploads(uploaded_files):
-    """Process uploaded files in background"""
-    with st.spinner(f"Processing {len(uploaded_files)} file(s)..."):
-        from backend.pipeline import DocumentPipeline
-
+def process_files(files):
+    """Process uploaded files"""
+    with st.spinner(f"✨ Processing {len(files)} file(s)..."):
         try:
+            from backend.pipeline import DocumentPipeline
+
             pipeline = DocumentPipeline(load_ocr_model=False, enable_vectordb=True)
+            processed = []
 
-            processed_files = []
-
-            for file in uploaded_files:
-                # Save temp file
+            for file in files:
+                # Save temp
                 with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.name).suffix) as tmp:
                     tmp.write(file.getvalue())
                     tmp_path = tmp.name
 
-                # Process based on type
+                # Process
                 if file.name.endswith('.pdf'):
                     result = pipeline.process_pdf(tmp_path, prompt_type="document")
                 else:
                     result = pipeline.process_image(tmp_path, prompt_type="document", enhance=True)
 
-                # Add to documents
+                # Store
                 st.session_state.documents.append({
                     'id': result['doc_id'],
                     'name': file.name,
-                    'type': 'pdf' if file.name.endswith('.pdf') else 'image',
+                    'processed': True,
                     'uploaded': datetime.now().strftime("%H:%M")
                 })
 
-                processed_files.append(file.name)
-
-                # Clean up
+                processed.append(file.name)
                 os.unlink(tmp_path)
 
-            # Add system message
-            file_list = ", ".join(processed_files)
-            add_message(
-                f"Uploaded and processed: {file_list}",
-                role="assistant",
+            # Success message
+            add_msg(
+                f"✅ Successfully processed: **{', '.join(processed)}**\n\nWhat would you like to know?",
+                "assistant",
                 actions={
                     "📝 Summarize": "summarize",
                     "🔍 Extract Info": "entities",
@@ -313,37 +476,34 @@ def process_uploads(uploaded_files):
             st.rerun()
 
         except Exception as e:
-            st.error(f"Error processing files: {e}")
+            st.error(f"❌ Error: {e}")
 
 
-def handle_user_input(user_input):
-    """Handle user chat input"""
+def handle_input(user_input):
+    """Handle user input"""
     # Add user message
-    add_message(user_input, role="user")
+    add_msg(user_input, "user")
 
-    # Check if there are documents
+    # Check docs
     if not st.session_state.documents:
-        add_message(
-            "Please upload some documents first! Click the 📎 button to attach files.",
-            role="assistant"
-        )
+        add_msg("Please upload documents first! Click 📎 to attach files.", "assistant")
         st.rerun()
         return
 
     # Process with RAG
-    with st.spinner("Thinking..."):
+    with st.spinner("✨ Thinking..."):
         try:
             from backend.features.rag_pipeline import CompleteRAGPipeline
             from backend.llm.query_router import LLMType
 
-            # Initialize RAG if needed
+            # Init RAG
             if st.session_state.rag_pipeline is None:
                 st.session_state.rag_pipeline = CompleteRAGPipeline(
                     collection_name="documents",
                     prefer_local=(st.session_state.llm_mode == "Local (Ollama)")
                 )
 
-            # Map LLM mode
+            # Map LLM
             llm_map = {
                 "Auto": LLMType.AUTO,
                 "Local (Ollama)": LLMType.OLLAMA,
@@ -359,65 +519,82 @@ def handle_user_input(user_input):
                 include_sources=True
             )
 
-            # Add assistant message
-            add_message(
+            # Add response
+            add_msg(
                 response.answer,
-                role="assistant",
+                "assistant",
                 sources=response.sources if st.session_state.show_sources else None
             )
 
             st.rerun()
 
         except Exception as e:
-            add_message(
-                f"Sorry, I encountered an error: {str(e)}",
-                role="assistant"
-            )
+            add_msg(f"❌ Error: {str(e)}", "assistant")
             st.rerun()
 
 
-def add_message(content, role="user", **kwargs):
-    """Add message to chat history"""
-    message = {
+def add_msg(content, role="user", **kwargs):
+    """Add message to history"""
+    st.session_state.messages.append({
         "id": len(st.session_state.messages),
         "role": role,
         "content": content,
-        "timestamp": datetime.now().strftime("%H:%M"),
+        "time": datetime.now().strftime("%H:%M"),
         **kwargs
-    }
-    st.session_state.messages.append(message)
-
-
-def handle_quick_action(action):
-    """Handle quick action buttons"""
-    if not st.session_state.documents:
-        st.warning("Upload documents first!")
-        return
-
-    actions = {
-        "summarize": "Summarize all documents in bullet points",
-        "entities": "Extract all entities (people, organizations, dates, emails) from the documents",
-        "compare": "Compare the documents and highlight similarities and differences",
-        "citation": "Generate APA citations for all documents"
-    }
-
-    if action in actions:
-        add_message(actions[action], role="user")
-        st.rerun()
+    })
 
 
 def handle_action(action):
-    """Handle inline action buttons"""
-    # Implement specific actions
-    pass
+    """Handle quick actions"""
+    actions = {
+        "summarize": "Summarize all documents in bullet points",
+        "entities": "Extract all entities (people, organizations, dates, emails)",
+        "question": ""  # Let user ask
+    }
+
+    if action in actions and actions[action]:
+        add_msg(actions[action], "user")
+        st.rerun()
+
+
+def export_chat():
+    """Export chat history"""
+    if not st.session_state.messages:
+        st.warning("No messages to export")
+        return
+
+    # Create export
+    export_text = "# SmartDoc AI Chat Export\n\n"
+    for msg in st.session_state.messages:
+        role = "You" if msg["role"] == "user" else "AI"
+        export_text += f"**{role}** ({msg['time']}):\n{msg['content']}\n\n"
+
+    st.download_button(
+        "📥 Download Chat",
+        export_text,
+        file_name=f"chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+        mime="text/markdown"
+    )
 
 
 def main():
-    """Main application"""
-    init_session_state()
-    render_sidebar()
-    render_chat()
+    """Main app"""
+    init_state()
+    render_header()
+
+    st.markdown("---")
+
+    # Main content
+    if not st.session_state.messages:
+        render_welcome()
+    else:
+        render_chat()
+
+    # Always show input
     render_input()
+
+    # Sidebar
+    render_sidebar()
 
 
 if __name__ == "__main__":
