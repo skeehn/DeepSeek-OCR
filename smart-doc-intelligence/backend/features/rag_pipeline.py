@@ -11,7 +11,7 @@ from backend.vectordb.retrieval import DocumentRetriever
 
 
 @dataclass
-class CompletePipeline Response:
+class CompletePipelineResponse:
     """Complete RAG pipeline response"""
     query: str
     answer: str
