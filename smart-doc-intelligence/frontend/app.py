@@ -87,7 +87,9 @@ def init_state():
         'rag_pipeline': None,
         'llm_mode': 'Auto',
         'show_sources': True,
-        'confirm_clear': False
+        'confirm_clear': False,
+        'upload_counter': 0,  # Stable counter for file upload key
+        'processing': False   # Prevent duplicate processing
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -290,6 +292,10 @@ def render_sidebar():
 
         st.session_state.show_sources = st.toggle("Show sources", value=True)
 
+        # System health check
+        if st.button("🏥 Health Check", use_container_width=True):
+            check_system_health()
+
         st.markdown("---")
 
         # Stats
@@ -311,15 +317,18 @@ def render_input():
             type=["pdf", "png", "jpg", "jpeg"],
             accept_multiple_files=True,
             label_visibility="collapsed",
-            key=f"upload_{datetime.now().timestamp()}"  # Stable unique key
+            key=f"upload_{st.session_state.upload_counter}"  # Stable counter-based key
         )
 
     with col2:
         user_input = st.chat_input("Ask anything about your documents...")
 
     # Handle upload
-    if uploaded:
+    if uploaded and not st.session_state.processing:
+        st.session_state.processing = True
         process_files(uploaded)
+        st.session_state.upload_counter += 1  # Increment for next upload
+        st.session_state.processing = False
 
     # Handle input
     if user_input:
@@ -327,13 +336,19 @@ def render_input():
 
 
 def process_files(files):
-    """Process uploaded files with proper cleanup"""
+    """Process uploaded files with proper cleanup and validation"""
+    if not files:
+        return
+
     # Validate file sizes
     MAX_SIZE_MB = 100
     for file in files:
         size_mb = len(file.getvalue()) / (1024 * 1024)
         if size_mb > MAX_SIZE_MB:
             st.error(f"❌ {file.name} is too large ({size_mb:.1f}MB). Max size is {MAX_SIZE_MB}MB.")
+            return
+        if size_mb == 0:
+            st.error(f"❌ {file.name} is empty (0MB). Please upload a valid file.")
             return
 
     progress_bar = st.progress(0)
@@ -344,6 +359,7 @@ def process_files(files):
 
         pipeline = DocumentPipeline(load_ocr_model=False, enable_vectordb=True)
         processed = []
+        failed = []
         total = len(files)
 
         for idx, file in enumerate(files):
@@ -357,51 +373,84 @@ def process_files(files):
                     tmp.write(file.getvalue())
                     tmp_path = tmp.name
 
-                # Process
-                if file.name.endswith('.pdf'):
+                # Process based on file type
+                if file.name.lower().endswith('.pdf'):
                     result = pipeline.process_pdf(tmp_path, prompt_type="document")
-                else:
+                elif file.name.lower().endswith(('.png', '.jpg', '.jpeg')):
                     result = pipeline.process_image(tmp_path, prompt_type="document", enhance=True)
+                else:
+                    st.warning(f"⚠️ Unsupported file type: {file.name}")
+                    failed.append(file.name)
+                    continue
 
-                # Store
-                st.session_state.documents.append({
-                    'id': result['doc_id'],
-                    'name': file.name,
-                    'processed': True,
-                    'uploaded': datetime.now().strftime("%H:%M")
-                })
+                # Check if doc_id already exists to prevent duplicates
+                if result and 'doc_id' in result:
+                    existing_ids = [d['id'] for d in st.session_state.documents]
+                    if result['doc_id'] in existing_ids:
+                        st.info(f"ℹ️ {file.name} already uploaded, skipping...")
+                        continue
 
-                processed.append(file.name)
+                    # Store
+                    st.session_state.documents.append({
+                        'id': result['doc_id'],
+                        'name': file.name,
+                        'processed': True,
+                        'uploaded': datetime.now().strftime("%H:%M"),
+                        'size_mb': round(size_mb, 2)
+                    })
+                    processed.append(file.name)
+                else:
+                    failed.append(file.name)
+
+            except Exception as file_error:
+                st.warning(f"⚠️ Failed to process {file.name}: {str(file_error)}")
+                failed.append(file.name)
 
             finally:
                 # Always cleanup temp file
                 if tmp_path and os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
+                    try:
+                        os.unlink(tmp_path)
+                    except Exception:
+                        pass  # Ignore cleanup errors
 
-        # Success message
+        # Clear progress indicators
         progress_bar.empty()
         status_text.empty()
 
-        add_msg(
-            f"✅ Successfully processed: **{', '.join(processed)}**\n\nWhat would you like to know?",
-            "assistant",
-            actions={
-                "📝 Summarize": "summarize",
-                "🔍 Extract Info": "entities",
-                "❓ Ask Question": "question"
-            }
-        )
+        # Show results
+        if processed:
+            success_msg = f"✅ Successfully processed: **{', '.join(processed)}**\n\nWhat would you like to know?"
+            if failed:
+                success_msg += f"\n\n⚠️ Failed: {', '.join(failed)}"
 
-        st.rerun()
+            add_msg(
+                success_msg,
+                "assistant",
+                actions={
+                    "📝 Summarize": "summarize",
+                    "🔍 Extract Info": "entities",
+                    "❓ Ask Question": "question"
+                }
+            )
+            st.rerun()
+        elif failed:
+            st.error(f"❌ Failed to process all files: {', '.join(failed)}")
 
     except Exception as e:
         progress_bar.empty()
         status_text.empty()
-        st.error(f"❌ Error: {e}")
+        st.error(f"❌ Processing error: {str(e)}\n\nPlease try again or check the file format.")
 
 
 def handle_input(user_input):
-    """Handle user input"""
+    """Handle user input with robust error handling"""
+    if not user_input or not user_input.strip():
+        return
+
+    # Sanitize input
+    user_input = user_input.strip()
+
     # Add user message
     add_msg(user_input, "user")
 
@@ -427,7 +476,8 @@ def handle_input(user_input):
                 "Cloud (Gemini)": LLMType.GEMINI
             }
 
-            # Query
+            # Query with timeout protection
+            start_time = time.time()
             response = pipeline.query(
                 query=user_input,
                 top_k=5,
@@ -435,20 +485,75 @@ def handle_input(user_input):
                 temperature=0.7,
                 include_sources=True
             )
+            elapsed = time.time() - start_time
 
-            # Add response
+            # Validate response
+            if not response or not hasattr(response, 'answer'):
+                raise ValueError("Invalid response from pipeline")
+
+            # Add response with metadata
             add_msg(
                 response.answer,
                 "assistant",
-                sources=response.sources if st.session_state.show_sources else None
+                sources=response.sources if st.session_state.show_sources else None,
+                metadata={"response_time": f"{elapsed:.2f}s"}
             )
 
             st.rerun()
 
-        except Exception as e:
-            # Add retry button on failure
+        except ImportError as e:
+            # Missing dependencies
             add_msg(
-                f"❌ Error: {str(e)}\n\nPlease try again or check your LLM settings.",
+                f"❌ Missing dependency: {str(e)}\n\n"
+                "Please install required packages:\n"
+                "```bash\npip install -r requirements.txt\n```",
+                "assistant"
+            )
+            st.rerun()
+
+        except ConnectionError as e:
+            # Network issues
+            add_msg(
+                f"❌ Connection error: {str(e)}\n\n"
+                "Please check:\n"
+                "- Ollama is running (for local mode)\n"
+                "- Internet connection (for cloud mode)\n"
+                "- API keys are set correctly",
+                "assistant",
+                actions={"🔄 Retry": "retry", "⚙️ Settings": "settings"}
+            )
+            st.rerun()
+
+        except TimeoutError:
+            # Timeout
+            add_msg(
+                "⏱️ Request timed out\n\n"
+                "The query took too long. Try:\n"
+                "- Simplifying your question\n"
+                "- Using a faster LLM mode\n"
+                "- Reducing the number of documents",
+                "assistant",
+                actions={"🔄 Retry": "retry"}
+            )
+            st.rerun()
+
+        except Exception as e:
+            # Generic error with helpful context
+            error_msg = str(e)
+            suggestions = []
+
+            # Provide context-specific suggestions
+            if "ollama" in error_msg.lower():
+                suggestions.append("- Start Ollama: `ollama serve`")
+            if "api" in error_msg.lower() or "key" in error_msg.lower():
+                suggestions.append("- Check your API keys in settings")
+            if "memory" in error_msg.lower():
+                suggestions.append("- Try reducing document count")
+
+            help_text = "\n".join(suggestions) if suggestions else "Please check your configuration and try again."
+
+            add_msg(
+                f"❌ Error: {error_msg}\n\n{help_text}",
                 "assistant",
                 actions={"🔄 Retry": "retry"}
             )
@@ -507,6 +612,76 @@ def remove_document(doc_id):
         d for d in st.session_state.documents
         if d['id'] != doc_id
     ]
+
+
+def check_system_health():
+    """Check system health and display status"""
+    with st.spinner("Checking system health..."):
+        health_status = {}
+
+        # Check Ollama
+        try:
+            import requests
+            response = requests.get("http://localhost:11434/api/tags", timeout=2)
+            if response.status_code == 200:
+                health_status["Ollama"] = ("🟢 Online", "success")
+            else:
+                health_status["Ollama"] = ("🟡 Reachable but issues", "warning")
+        except Exception:
+            health_status["Ollama"] = ("🔴 Offline", "error")
+
+        # Check Vector DB
+        try:
+            from backend.vectordb.chroma_manager import ChromaManager
+            chroma = ChromaManager()
+            collection = chroma.get_collection("documents")
+            count = collection.count() if collection else 0
+            health_status["ChromaDB"] = (f"🟢 Online ({count} chunks)", "success")
+        except Exception as e:
+            health_status["ChromaDB"] = (f"🔴 Error: {str(e)[:30]}", "error")
+
+        # Check Gemini API
+        try:
+            import os
+            api_key = os.getenv("GEMINI_API_KEY")
+            if api_key:
+                health_status["Gemini API"] = ("🟢 Key found", "success")
+            else:
+                health_status["Gemini API"] = ("🟡 No API key", "warning")
+        except Exception:
+            health_status["Gemini API"] = ("🔴 Error", "error")
+
+        # Check dependencies
+        deps_to_check = ["streamlit", "chromadb", "sentence_transformers", "PIL", "PyMuPDF"]
+        missing_deps = []
+        for dep in deps_to_check:
+            try:
+                __import__(dep.replace("_", "").lower())
+            except ImportError:
+                missing_deps.append(dep)
+
+        if not missing_deps:
+            health_status["Dependencies"] = ("🟢 All installed", "success")
+        else:
+            health_status["Dependencies"] = (f"🟡 Missing: {', '.join(missing_deps)}", "warning")
+
+        # Display results
+        st.markdown("### System Health Report")
+        for component, (status, level) in health_status.items():
+            if level == "success":
+                st.success(f"**{component}**: {status}")
+            elif level == "warning":
+                st.warning(f"**{component}**: {status}")
+            else:
+                st.error(f"**{component}**: {status}")
+
+        # Overall status
+        errors = sum(1 for _, level in health_status.values() if level == "error")
+        if errors == 0:
+            st.balloons()
+            st.success("✅ System is healthy!")
+        else:
+            st.info(f"ℹ️ {errors} component(s) need attention")
 
 
 def main():
